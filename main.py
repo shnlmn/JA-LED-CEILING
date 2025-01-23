@@ -6,25 +6,22 @@ import asyncio
 import websockets
 import board
 import neopixel
-from animations.led_perlin import led_vars as perlin_vars, display_img as perlin_img
-from animations.led_fire import led_vars as fire_vars, display_img as fire_img
+import json
+from config import LED_WIDTH, LED_HEIGHT
+from settings import ACTIVE_ANIMATIONS
+
+current_anim = "perlin"
 
 # LED strip configuration
-LED_COUNT = 192        # Number of LED pixels
+LED_COUNT = LED_WIDTH*LED_HEIGHT        # Number of LED pixels
 LED_PIN = board.D18    # GPIO pin connected to the pixels (must support PWM or be a hardware SPI pin)
 LED_BRIGHTNESS = 1.0   # Brightness of the LEDs (0.0 to 1.0)
 LED_AUTO_WRITE = False # Disable auto-show to manually control updates
 PIXEL_ORDER = neopixel.GRB  # Pixel color order
 
-# Animation registry
-animations = {
-    'perlin': (perlin_vars, perlin_img),
-    'fire': (fire_vars, fire_img),
-}
-current_anim = 'perlin'
-
 strip = None
 
+# Graceful shutdown signal handler
 def signal_handler(sig, frame):
     color_wipe(strip, (0, 0, 0))  # Turn off all LEDs
     sys.exit(0)
@@ -37,35 +34,63 @@ def color_wipe(strip, color):
 
 async def listen(websocket, path):
     """
-    Receives commands of format "key:value"
-    e.g. "animation:fire" or "mag:5.0"
+    Handles inbound messages, for example:
+    "animation:perlin"
+    "mag:4.2"
+    "request_ui_schema:1"
     """
-    message = await websocket.recv()
-    key, val = message.split(':', 1)
-
-    if key == 'animation' and val in animations:
+    async for message in websocket:
+        
         global current_anim
-        current_anim = val
-        print(f"Switched animation to {val}")
-    else:
-        # Update led_vars of the active animation
-        anim_vars, _ = animations[current_anim]
+        anim_dict = ACTIVE_ANIMATIONS[current_anim]
+        print(current_anim)
+        
         try:
-            anim_vars[key] = float(val)
-            print(f"Updated {key} to {val} in {current_anim}")
-        except ValueError:
-            print(f"Invalid value for {key}: {val}")
+            key, val = message.split(':', 1)
+            print(f"Received: {message}")
+            if key == 'animation' and val in ACTIVE_ANIMATIONS:
+                current_anim = val
+                anim_dict = ACTIVE_ANIMATIONS[val]
+                print(f"Switched animation to {val}")
+                ui_schema = anim_dict["ui_controls"]
+                current_values = anim_dict["vars"]
+                response = {
+                    "ui_schema": ui_schema,
+                    "current_values": current_values,
+                }
+                await websocket.send(json.dumps(response))
+            elif key == 'request_ui_schema':
+                #Return the UI schema for the current animation
+                ui_schema = anim_dict["ui_controls"]
+                current_values = anim_dict["vars"]
+                response = {
+                    "ui_schema": ui_schema,
+                    "current_values": current_values,
+                }
+                await websocket.send(json.dumps(response))
+            else:
+                # Update led_vars of the active animation
+                if key in anim_dict["vars"]:
+                    try:
+                        anim_dict["vars"][key] = float(val)
+                        print(f"Updated {key} to {val} in {current_anim}")
+                    except ValueError:
+                        print(f"Invalid value for {key}: {val}")
+
+        except Exception as e:
+            print(f"Error processing message: {e}")
 
 async def run_animation():
     count = 0
     while True:
-        anim_vars, anim_func = animations[current_anim]
+        anim_vars = ACTIVE_ANIMATIONS[current_anim]["vars"]
+        anim_func = ACTIVE_ANIMATIONS[current_anim]["func"]
         await anim_func(strip, count, **anim_vars)
         count += 1
+        await asyncio.sleep(0)  # Allow other tasks to run
 
-if __name__ == '__main__':
-    # Handle Ctrl+C
-    signal.signal(signal.SIGINT, signal_handler)
+async def main():
+    global strip
 
     # Initialize LED strip
     strip = neopixel.NeoPixel(
@@ -75,14 +100,22 @@ if __name__ == '__main__':
         pixel_order=PIXEL_ORDER
     )
 
-    # Start WebSocket server on port 5555
-    start_server = websockets.serve(listen, '0.0.0.0', 5555)
+    # Start WebSocket server
+    server = await websockets.serve(listen, '0.0.0.0', 5555)
+    print("WebSocket server started on ws://0.0.0.0:5555")
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(asyncio.gather(start_server, run_animation()))
+    # Run animation loop concurrently
+    await asyncio.gather(server.wait_closed(), run_animation())
+
+if __name__ == '__main__':
+    # Handle Ctrl+C
+    signal.signal(signal.SIGINT, signal_handler)
+
+    # Run the main event loop
     try:
-        loop.run_forever()
+        asyncio.run(main())
     except KeyboardInterrupt:
-        pass
-    loop.close()
+        color_wipe(strip, (0, 0, 0))  # Turn off all LEDs
+        print("Program terminated.")
+
 

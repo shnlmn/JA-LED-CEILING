@@ -1,0 +1,2 @@
+LED_WIDTH = 16
+LED_HEIGHT = 12 

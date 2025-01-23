@@ -1,6 +1,7 @@
 import time
 from noise import pnoise3
 import neopixel
+from config import LED_WIDTH, LED_HEIGHT
 
 led_vars = {
     "mag": 5,
@@ -18,22 +19,20 @@ led_vars = {
     "green_bright": 255
 }
 
-H = 12
-W = 16
-
 def interp(val, smin=0.0, smax=1.0, tmin=0.0, tmax=255.0):
     return ((abs(val) - smin) * (tmax - tmin) / (smax - smin)) + tmin
 
 async def display_img(strip, count, **cfg):
-    span = W * H
+    span = LED_WIDTH * LED_HEIGHT
     z_shift = count * cfg["timing"]
-    for i in range(W):
-        for j in range(H):
-            led_index = (W * H) - 1 - (i * H + j)
+    for i in range(LED_WIDTH):
+        for j in range(LED_HEIGHT):
+            led_index = (LED_WIDTH * LED_HEIGHT) - 1 - (i * LED_HEIGHT + j)
             if i % 2 == 0:
-                j = (H - 1) - j
+                j = (LED_HEIGHT - 1) - j
             y_dir = i * cfg["mag"] + (count * cfg["y_drift"])
             x_dir = j * cfg["mag"] + (count * cfg["x_drift"])
+            cfg["octaves"] = int(cfg["octaves"])
             b = interp(pnoise3((y_dir + cfg["blue_offset"]) / span,
                                (x_dir + cfg["blue_offset"]) / span,
                                z_shift, octaves=cfg["octaves"]),

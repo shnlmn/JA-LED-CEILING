@@ -1,23 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>LED Control</title>
+  <meta charset="UTF-8" />
+  <title>LED Animation Control</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #1A1A2E 0%, #16213E 100%);
+      color: #FFF;
+      padding: 2rem;
+    }
+
+    .container {
+      width: 95%;
+      max-width: 600px;
+      margin: 0 auto;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      padding: 2rem;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .control-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .control-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    select, input[type="range"], input[type="number"] {
+      width: 100%;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+      border: none;
+      border-radius: 4px;
+      outline: none;
+      font-size: 1rem;
+    }
+
+    select {
+      background: #0F3460;
+      color: #FFF;
+      cursor: pointer;
+    }
+
+    input[type="range"] {
+      cursor: pointer;
+      background: #0F3460;
+    }
+
+    input[type="number"] {
+      background: #0F3460;
+      color: #FFF;
+    }
+  </style>
 </head>
 <body>
-  <h1>LED Animation Control</h1>
+  <div class="container">
+    <h1>LED Animation Control</h1>
 
-  <label for="animationSelect">Animation:</label>
-  <select id="animationSelect">
-    <option value="perlin">Perlin</option>
-    <option value="fire">Fire</option>
-  </select>
-  
-  <br><br>
+    <div class="control-group">
+      <label for="animationSelect">Choose Animation</label>
+      <select id="animationSelect">
+        <option value="perlin">Perlin</option>
+        <option value="fire">Fire</option>
+      </select>
+    </div>
 
-  <label for="magInput">Perlin Magnitude:</label>
-  <input type="range" id="magInput" min="0" max="10" step="0.1" value="5">
+    <!-- Dynamically injected controls appear here -->
+    <div id="controls"></div>
+  </div>
 
   <script src="app.js"></script>
 </body>
 </html>
-
